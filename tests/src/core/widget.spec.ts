@@ -48,10 +48,11 @@ export class DxTestWidgetComponent extends DxComponent {
     constructor(elementRef: ElementRef, ngZone: NgZone, templateHost: DxTemplateHost) {
         super(elementRef, ngZone, templateHost);
         this.widgetClassName = 'dxTestWidget';
-        this._events = [
+        this.createEventEmitters([
             { subscribe: 'optionChanged', emit: 'onOptionChanged' },
-            { subscribe: 'initialized', emit: 'onInitialized' }
-        ];
+            { subscribe: 'initialized', emit: 'onInitialized' },
+            { emit: 'testOptionChange' }
+        ]);
 
         this._properties = [
             'testOption'

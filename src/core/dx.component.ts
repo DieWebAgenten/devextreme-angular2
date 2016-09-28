@@ -8,12 +8,14 @@ import {
 
 import { DxTemplateDirective } from './dx.template';
 import { DxTemplateHost } from './dx.template-host';
+import { NgEventsStrategy } from './dx.events-strategy';
 
 declare let $: any;
 
 export class DxComponent implements OnChanges, AfterViewInit {
     private _initialOptions: any;
     private _isChangesProcessing = false;
+    eventsStrategy: NgEventsStrategy;
     templates: DxTemplateDirective[];
     widgetClassName: string;
     instance: any;
@@ -31,24 +33,17 @@ export class DxComponent implements OnChanges, AfterViewInit {
             this._initialOptions._templates = initialTemplates;
         }
     }
-    private _initEvents() {
-        this._events.forEach(event => {
-            if (event.subscribe) {
-                this.instance.on(event.subscribe, e => {
-                    if (event.subscribe === 'optionChanged') {
-                        let changeEventName = e.name + 'Change';
-                        if (this[changeEventName] && !this._isChangesProcessing) {
-                            this[e.name] = e.value;
-                            this[changeEventName].next(e.value);
-                        }
-                    } else {
-                        if (this[event.emit]) {
-                            this.ngZone.run(() => {
-                                this[event.emit].next(e);
-                            });
-                        }
-                    }
-                });
+    protected _createEventEmitters(events) {
+        events.forEach(event => {
+            this[event.emit] = this.eventsStrategy.createEmitter<any>(event.emit, event.subscribe);
+        });
+    }
+    private _initEvents(events) {
+        this.instance.on('optionChanged', e => {
+            let changeEventName = e.name + 'Change';
+            if (this.eventsStrategy.hasNgEmitter(changeEventName) && !this._isChangesProcessing) {
+                this[e.name] = e.value;
+                this.eventsStrategy.fireNgEvent(changeEventName, [e.value]);
             }
         });
     }
@@ -62,6 +57,7 @@ export class DxComponent implements OnChanges, AfterViewInit {
         let $element = $(this.element.nativeElement);
         $element[this.widgetClassName](this._initialOptions);
         this.instance = $element[this.widgetClassName]('instance');
+        this.instance.setEventsStrategy(this.eventsStrategy);
     }
     private _createWidget() {
         this._initTemplates();
@@ -69,26 +65,25 @@ export class DxComponent implements OnChanges, AfterViewInit {
         this._initEvents();
         this._initProperties();
     }
-    constructor(private element: ElementRef, private ngZone: NgZone, templateHost: DxTemplateHost) {
+    constructor(private element: ElementRef, ngZone: NgZone, templateHost: DxTemplateHost) {
         this._initialOptions = {};
         this.templates = [];
         templateHost.setHost(this);
+        this.eventsStrategy = new NgEventsStrategy(ngZone);
     }
     setTemplate(template: DxTemplateDirective) {
         this.templates.push(template);
     }
     ngOnChanges(changes: { [key: string]: SimpleChange }) {
-        let that = this;
-
-        if (that.instance) {
-            $.each(changes, function (propertyName, change) {
-                that._isChangesProcessing = true; // prevent cycle change event emitting
-                that.instance.option(propertyName, change.currentValue);
-                that._isChangesProcessing = false;
+        if (this.instance) {
+            $.each(changes, (propertyName, change) => {
+                this._isChangesProcessing = true; // prevent cycle change event emitting
+                this.instance.option(propertyName, change.currentValue);
+                this._isChangesProcessing = false;
             });
         } else {
-            $.each(changes, function (propertyName, change) {
-                that._initialOptions[propertyName] = change.currentValue;
+            $.each(changes, (propertyName, change) => {
+                this._initialOptions[propertyName] = change.currentValue;
             });
         }
     }

@@ -50,19 +50,17 @@ export class <#= it.className #>Component extends DxComponent<#? collectionPrope
 
         super(elementRef, ngZone, templateHost);
         this.widgetClassName = '<#= it.widgetName #>';
-        this._events = [
+        this._createEventEmitters([
             <#~ it.events :event:i #>{ <#? event.subscribe #>subscribe: '<#= event.subscribe #>', <#?#>emit: '<#= event.emit #>' }<#? i < it.events.length-1 #>,
             <#?#><#~#>
-        ];
+        ]);
 
         this._properties = [
             <#~ it.properties :prop:i #>'this.<#= prop.name #>'<#? i < it.properties.length-1 #>,
             <#?#><#~#>
         ];
 
-        <#~ it.events :event:i #>this.<#= event.emit #> = new EventEmitter();<#? i < it.events.length-1 #>
-        <#?#><#~#><#? collectionProperties.length #>
-
+        <#? collectionProperties.length #>
         this._idh.setHost(this);<#?#>
     }
 <#? collectionProperties.length #>
